@@ -73,6 +73,30 @@ export function Section({
   );
 }
 
+export function JobPhotos({ photos }: { photos?: string[] }) {
+  if (!photos?.length) return null;
+  return (
+    <section aria-label="Job photos" className="grid gap-3 sm:grid-cols-2">
+      {photos.map((photo, index) => (
+        <a
+          key={photo}
+          href={photo}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Open job photo ${index + 1}`}
+        >
+          <img
+            src={photo}
+            alt={`Job photo ${index + 1}`}
+            className="h-56 w-full rounded-xl object-cover"
+            loading="lazy"
+          />
+        </a>
+      ))}
+    </section>
+  );
+}
+
 export function JobCard({
   job,
   view,
@@ -98,7 +122,9 @@ export function JobCard({
         </div>
         <div className="shrink-0 text-right">
           <div className="font-display text-lg font-bold text-primary">{rand(job.budget)}</div>
-          <div className="text-xs text-muted-foreground">{job.distanceKm} km away</div>
+          {job.distanceKm > 0 ? (
+            <div className="text-xs text-muted-foreground">{job.distanceKm} km away</div>
+          ) : null}
         </div>
       </div>
       <p className="line-clamp-2 text-sm text-muted-foreground">{job.description}</p>
@@ -111,7 +137,11 @@ export function JobCard({
       </div>
       <div className="flex flex-wrap gap-2 pt-1">
         <Link to={to} params={{ jobId: job.id }} className="btn-primary !h-10 !px-4 !text-sm">
-          {view === "worker" ? "Apply Now" : "View job"}
+          {view === "worker"
+            ? "Apply Now"
+            : job.applicants.length > 0
+              ? `Review applicants (${job.applicants.length})`
+              : "View job"}
         </Link>
         <Link to="/messages" className="btn-secondary !h-10 !px-4 !text-sm">
           Message

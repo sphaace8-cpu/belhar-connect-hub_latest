@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { JobCard, StatCard, Section } from "@/components/ui-kit";
-import { useAvailability, useJobs } from "@/lib/hooks";
+import { useAvailability } from "@/lib/hooks";
 import { useNavigate } from "@tanstack/react-router";
 import { useProfile } from "@/lib/auth";
+import { useMarketplaceJobs } from "@/lib/marketplace";
 
 export const Route = createFileRoute("/worker/dashboard")({
   head: () => ({
@@ -23,9 +24,12 @@ export const Route = createFileRoute("/worker/dashboard")({
 function WorkerDashboard() {
   const { available, toggleAvailability } = useAvailability();
   const navigate = useNavigate();
-  const { jobs } = useJobs();
-  const { profile } = useProfile();
+  const { jobs, isLoading, error, refresh } = useMarketplaceJobs();
+  const { profile, userId } = useProfile();
   const openJobs = jobs.filter((j) => j.status === "Open").slice(0, 4);
+  const applications = jobs.flatMap((job) =>
+    job.applicants.filter((application) => application.workerId === userId),
+  );
   const name = profile?.full_name || "Worker";
   const role = profile?.skills?.[0] || "Local worker";
   const location = profile?.location || "Belhar, Cape Town";
@@ -64,7 +68,12 @@ function WorkerDashboard() {
           className="card-surface text-left transition-colors hover:bg-muted"
         >
           <div className="p-5">
-            <StatCard label="Completed jobs" value="47" hint="8 this month" icon="✅" />
+            <StatCard
+              label="Completed jobs"
+              value={String(profile?.jobs_done ?? 0)}
+              hint="On your profile"
+              icon="✅"
+            />
           </div>
         </button>
         <button
@@ -80,7 +89,12 @@ function WorkerDashboard() {
           className="card-surface text-left transition-colors hover:bg-muted"
         >
           <div className="p-5">
-            <StatCard label="Rating" value="4.9★" hint="From 41 reviews" icon="⭐" />
+            <StatCard
+              label="Rating"
+              value={`${(profile?.rating ?? 0).toFixed(1)}★`}
+              hint="Your profile rating"
+              icon="⭐"
+            />
           </div>
         </button>
       </div>
@@ -96,24 +110,30 @@ function WorkerDashboard() {
           </Link>
         }
       >
+        {error ? (
+          <p role="alert" className="card-surface p-5 text-sm text-destructive">
+            We couldn't load current jobs.{" "}
+            <button onClick={() => void refresh()} className="font-semibold underline">
+              Try again
+            </button>
+          </p>
+        ) : null}
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading available jobs…</p>
+        ) : null}
         {openJobs.length > 0 ? (
           <div className="grid gap-4 lg:grid-cols-2">
             {openJobs.map((j) => (
-              <Link
-                key={j.id}
-                to="/worker/job/$jobId"
-                params={{ jobId: j.id }}
-                className="transition-transform hover:scale-105"
-              >
+              <div key={j.id} className="transition-transform hover:scale-[1.02]">
                 <JobCard job={j} view="worker" />
-              </Link>
+              </div>
             ))}
           </div>
-        ) : (
+        ) : !isLoading && !error ? (
           <div className="card-surface p-8 text-center text-sm text-muted-foreground">
             No open jobs right now. Check back soon!
           </div>
-        )}
+        ) : null}
       </Section>
 
       <Section
@@ -129,10 +149,19 @@ function WorkerDashboard() {
       >
         <div className="grid gap-4 sm:grid-cols-4">
           {[
-            ["Applied", 2],
-            ["Shortlisted", 1],
-            ["Hired", 1],
-            ["Rejected", 1],
+            [
+              "Applied",
+              applications.filter((application) => application.status === "Applied").length,
+            ],
+            [
+              "Shortlisted",
+              applications.filter((application) => application.status === "Shortlisted").length,
+            ],
+            ["Hired", applications.filter((application) => application.status === "Hired").length],
+            [
+              "Rejected",
+              applications.filter((application) => application.status === "Rejected").length,
+            ],
           ].map(([label, n]) => (
             <button
               key={label as string}

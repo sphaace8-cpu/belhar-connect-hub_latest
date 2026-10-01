@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { categories, type Job } from "@/lib/data";
-import { useJobDrafts, useJobs } from "@/lib/hooks";
+import { categories } from "@/lib/data";
+import { useJobDrafts } from "@/lib/hooks";
+import { useProfile } from "@/lib/auth";
+import { useMarketplaceJobs } from "@/lib/marketplace";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/member/post-job")({
@@ -42,14 +44,21 @@ const INITIAL_FORM_STATE: JobFormData = {
 
 function PostJob() {
   const navigate = useNavigate();
+  const { userId, profile } = useProfile();
   const { saveDraft, getDraft, removeDraft } = useJobDrafts();
-  const { addJob } = useJobs();
+  const { createJob } = useMarketplaceJobs();
   const [formData, setFormData] = useState<JobFormData>(() => {
     const draft = getDraft("current-job");
     return draft || INITIAL_FORM_STATE;
   });
   const [loading, setLoading] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<{ file: File; url: string }[]>([]);
   const [errors, setErrors] = useState<Partial<Record<keyof JobFormData, string>>>({});
+
+  useEffect(
+    () => () => selectedPhotos.forEach((photo) => URL.revokeObjectURL(photo.url)),
+    [selectedPhotos],
+  );
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof JobFormData, string>> = {};
@@ -58,7 +67,8 @@ function PostJob() {
     if (formData.title.length < 5) newErrors.title = "Job title must be at least 5 characters";
 
     if (!formData.description.trim()) newErrors.description = "Description is required";
-    if (formData.description.length < 10) newErrors.description = "Description must be at least 10 characters";
+    if (formData.description.length < 10)
+      newErrors.description = "Description must be at least 10 characters";
 
     if (!formData.budget || isNaN(Number(formData.budget))) {
       newErrors.budget = "Valid budget is required";
@@ -73,13 +83,12 @@ function PostJob() {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     }));
     if (errors[name as keyof JobFormData]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -101,37 +110,27 @@ function PostJob() {
 
     setLoading(true);
     try {
-      const newJob: Job = {
-        id: `job-${Date.now()}`,
+      if (!userId || !profile) {
+        throw new Error("Sign in again before posting a job.");
+      }
+      await createJob({
+        posterId: userId,
         title: formData.title.trim(),
         category: formData.category,
         description: formData.description.trim(),
         budget: Number(formData.budget),
         location: formData.location.trim() || "Belhar, Cape Town",
-        postedBy: "Fatima Adams",
-        clientRating: 5,
-        distanceKm: 0,
-        when: formData.datetime
-          ? new Date(formData.datetime).toLocaleString("en-ZA", {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "Date to be confirmed",
+        schedule: new Date(formData.datetime).toISOString(),
         urgent: formData.urgent,
-        status: "Open",
-        applicants: [],
-      };
-
-      addJob(newJob);
+        photos: selectedPhotos.map((photo) => photo.file),
+      });
       toast.success("Job posted successfully!");
       removeDraft("current-job");
       setFormData(INITIAL_FORM_STATE);
+      setSelectedPhotos([]);
       navigate({ to: "/member/jobs" });
     } catch (error) {
-      toast.error("Failed to post job. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to post job. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -140,6 +139,7 @@ function PostJob() {
   const handleClear = () => {
     if (window.confirm("Clear all form data?")) {
       setFormData(INITIAL_FORM_STATE);
+      setSelectedPhotos([]);
       removeDraft("current-job");
       setErrors({});
     }
@@ -147,10 +147,7 @@ function PostJob() {
 
   return (
     <AppShell role="member" title="Post a New Job" subtitle="Reach workers within 5 km of you">
-      <form
-        className="card-surface max-w-2xl space-y-5 p-6"
-        onSubmit={handleSubmit}
-      >
+      <form className="card-surface max-w-2xl space-y-5 p-6" onSubmit={handleSubmit}>
         <L label="Job title" error={errors.title}>
           <input
             name="title"
@@ -219,22 +216,69 @@ function PostJob() {
           />
         </L>
         <L label="Photos (optional)">
-          <div className="grid h-32 place-items-center rounded-xl border-2 border-dashed border-border text-center text-sm text-muted-foreground">
-            <div>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                id="photos"
-                disabled
-              />
-              <label htmlFor="photos" className="cursor-pointer">
+          <div className="rounded-xl border-2 border-dashed border-border p-4 text-sm text-muted-foreground">
+            <label htmlFor="photos" className="block cursor-pointer text-center">
+              <span className="text-lg" aria-hidden="true">
                 📷
-                <div>Tap to upload photos of the job</div>
-                <div className="text-xs">(Coming soon)</div>
-              </label>
-            </div>
+              </span>
+              <span className="mt-1 block font-semibold text-foreground">
+                Add up to 5 job photos
+              </span>
+              <span className="mt-1 block text-xs">
+                JPEG, PNG, or WebP · maximum 5 MB per photo
+              </span>
+            </label>
+            <input
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              id="photos"
+              onChange={(event) => {
+                const files = Array.from(event.currentTarget.files ?? []);
+                event.currentTarget.value = "";
+                if (files.length > 5) {
+                  toast.error("Choose no more than 5 photos.");
+                  return;
+                }
+                if (
+                  files.some(
+                    (file) =>
+                      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+                      file.size > 5 * 1024 * 1024,
+                  )
+                ) {
+                  toast.error("Photos must be JPEG, PNG, or WebP and no larger than 5 MB each.");
+                  return;
+                }
+                setSelectedPhotos(files.map((file) => ({ file, url: URL.createObjectURL(file) })));
+              }}
+            />
+            {selectedPhotos.length > 0 && (
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {selectedPhotos.map((photo) => (
+                  <div key={photo.url} className="relative">
+                    <img
+                      src={photo.url}
+                      alt={`Preview of ${photo.file.name}`}
+                      className="h-28 w-full rounded-lg object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPhotos((current) =>
+                          current.filter((item) => item.url !== photo.url),
+                        )
+                      }
+                      className="absolute right-1 top-1 rounded-full bg-black/70 px-2 py-1 text-xs text-white"
+                      aria-label={`Remove ${photo.file.name}`}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </L>
 
@@ -275,18 +319,10 @@ function PostJob() {
           >
             {loading ? "Posting..." : "Post job"}
           </button>
-          <button
-            type="button"
-            onClick={handleSaveDraft}
-            className="btn-secondary"
-          >
+          <button type="button" onClick={handleSaveDraft} className="btn-secondary">
             💾 Save draft
           </button>
-          <button
-            type="button"
-            onClick={handleClear}
-            className="btn-ghost"
-          >
+          <button type="button" onClick={handleClear} className="btn-ghost">
             🗑️ Clear
           </button>
         </div>

@@ -3,7 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { JobCard } from "@/components/ui-kit";
 import { categories, categoryEmoji } from "@/lib/data";
-import { useJobs, useSavedJobs } from "@/lib/hooks";
+import { useSavedJobs } from "@/lib/hooks";
+import { useMarketplaceJobs } from "@/lib/marketplace";
 
 export const Route = createFileRoute("/worker/find-jobs")({
   head: () => ({
@@ -24,11 +25,12 @@ export const Route = createFileRoute("/worker/find-jobs")({
 function FindJobs() {
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
-  const { jobs } = useJobs();
+  const { jobs, isLoading, error, refresh } = useMarketplaceJobs();
   const { saved, toggleSaved } = useSavedJobs();
 
   const list = jobs.filter(
     (j) =>
+      j.status === "Open" &&
       (cat === "All" || j.category === cat) &&
       (q === "" ||
         j.title.toLowerCase().includes(q.toLowerCase()) ||
@@ -62,6 +64,15 @@ function FindJobs() {
 
       <p className="text-sm text-muted-foreground">{list.length} jobs found near you</p>
 
+      {error ? (
+        <p role="alert" className="card-surface p-5 text-sm text-destructive">
+          We couldn't load available jobs.{" "}
+          <button onClick={() => void refresh()} className="font-semibold underline">
+            Try again
+          </button>
+        </p>
+      ) : null}
+      {isLoading ? <p className="text-sm text-muted-foreground">Loading available jobs…</p> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {list.map((j) => (
           <div key={j.id}>
@@ -73,7 +84,7 @@ function FindJobs() {
             />
           </div>
         ))}
-        {list.length === 0 && (
+        {!isLoading && !error && list.length === 0 && (
           <p className="card-surface p-8 text-center text-sm text-muted-foreground">
             No jobs match that search yet. Try another category.
           </p>

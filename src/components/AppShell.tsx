@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { useEffect, type ReactNode } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Logo } from "./Logo";
 import { initials, useProfile, useSignOut } from "@/lib/auth";
 
@@ -39,8 +39,60 @@ export function AppShell({
   action?: ReactNode;
   children: ReactNode;
 }) {
-  const { profile } = useProfile();
+  const { userId, profile, isLoading, error, refresh } = useProfile();
   const signOut = useSignOut();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoading || error) return;
+    if (!userId) {
+      void navigate({ to: "/login", replace: true });
+      return;
+    }
+    if (!profile) return;
+    if (role && role !== profile.role) {
+      void navigate({
+        to: profile.role === "worker" ? "/worker/dashboard" : "/member/dashboard",
+        replace: true,
+      });
+    }
+  }, [error, isLoading, navigate, profile, role, userId]);
+
+  if (isLoading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background px-4 text-sm text-muted-foreground">
+        Loading your Connectly account…
+      </div>
+    );
+  }
+
+  if (error || !userId || !profile) {
+    const message = error
+      ? "We couldn't verify your account right now. Your session has not been ended."
+      : !userId
+        ? "Redirecting to sign in…"
+        : "Your account profile could not be loaded.";
+    return (
+      <div className="grid min-h-screen place-items-center bg-background px-4">
+        <div className="card-surface max-w-md space-y-4 p-6 text-center">
+          <p className="text-sm text-muted-foreground">{message}</p>
+          {(error || (userId && !profile)) && (
+            <button onClick={() => void refresh()} className="btn-primary">
+              Try again
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (role && role !== profile.role) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background px-4 text-sm text-muted-foreground">
+        Opening your {profile.role === "worker" ? "Worker" : "Community Member"} dashboard…
+      </div>
+    );
+  }
 
   const effectiveRole: "member" | "worker" =
     role ?? (profile?.role === "worker" ? "worker" : "member");

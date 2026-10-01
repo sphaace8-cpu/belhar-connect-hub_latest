@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { Stars, Tag } from "@/components/ui-kit";
-import { jobs, rand } from "@/lib/data";
+import { JobPhotos, Stars, Tag } from "@/components/ui-kit";
+import { rand } from "@/lib/data";
+import { useMarketplaceJobs } from "@/lib/marketplace";
+import { useProfile } from "@/lib/auth";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/member/job/$jobId")({
   head: () => ({
@@ -20,7 +24,62 @@ export const Route = createFileRoute("/member/job/$jobId")({
 
 function MemberJobDetail() {
   const { jobId } = Route.useParams();
-  const job = jobs.find((j) => j.id === jobId) ?? jobs[0]!;
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const { jobs, isLoading, error, refresh, acceptApplication, updateJobStatus } =
+    useMarketplaceJobs();
+  const { userId } = useProfile();
+  const job = jobs.find((item) => item.id === jobId && item.ownerId === userId);
+
+  const handleAccept = async (applicationId: string, workerId: string) => {
+    setAcceptingId(applicationId);
+    try {
+      await acceptApplication(jobId, applicationId, workerId);
+      toast.success("Worker accepted. The job is now in progress.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not accept this application.");
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
+  const handleComplete = async () => {
+    try {
+      await updateJobStatus(jobId, "Completed");
+      toast.success("Job marked as complete.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not complete this job.");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <AppShell role="member" title="Loading job…">
+        <p className="text-sm text-muted-foreground">Loading job details…</p>
+      </AppShell>
+    );
+  }
+
+  if (!job) {
+    return (
+      <AppShell role="member" title={error ? "Unable to load job" : "Job not found"}>
+        <div className="card-surface p-8 text-center">
+          <p role={error ? "alert" : undefined} className="text-sm text-muted-foreground">
+            {error
+              ? "We couldn't load this job."
+              : "This job does not exist or is not part of your account."}
+          </p>
+          {error ? (
+            <button onClick={() => void refresh()} className="btn-secondary mt-5">
+              Try again
+            </button>
+          ) : null}
+          <Link to="/member/jobs" className="btn-primary mt-5">
+            Back to My Jobs
+          </Link>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell role="member" title={job.title} subtitle={`Posted by you · ${job.location}`}>
@@ -34,6 +93,7 @@ function MemberJobDetail() {
             </div>
             <h2 className="mt-4 font-display text-lg font-bold">Description</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{job.description}</p>
+            <JobPhotos photos={job.photos} />
             <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-border pt-5 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Budget</dt>
@@ -86,7 +146,28 @@ function MemberJobDetail() {
                     <Stars rating={a.rating} />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button className="btn-primary !h-10 !px-4 !text-sm">✓ Accept Worker</button>
+                    <button
+                      type="button"
+                      disabled={
+                        !a.id ||
+                        !a.workerId ||
+                        job.status !== "Open" ||
+                        (a.status !== "Applied" && a.status !== "Shortlisted") ||
+                        acceptingId !== null
+                      }
+                      onClick={() => {
+                        if (a.id && a.workerId) void handleAccept(a.id, a.workerId);
+                      }}
+                      className="btn-primary !h-10 !px-4 !text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {acceptingId === a.id
+                        ? "Accepting…"
+                        : a.status === "Hired"
+                          ? "✓ Accepted"
+                          : a.status === "Rejected"
+                            ? "Not selected"
+                            : "✓ Accept Worker"}
+                    </button>
                     <Link to="/messages" className="btn-secondary !h-10 !px-4 !text-sm">
                       Message
                     </Link>
@@ -107,8 +188,14 @@ function MemberJobDetail() {
           <div className="card-surface p-5">
             <h3 className="font-display font-bold">Manage this job</h3>
             <div className="mt-4 space-y-2">
-              <button className="btn-primary w-full">Mark Complete</button>
-              <button className="btn-secondary w-full">Edit job</button>
+              <button
+                type="button"
+                onClick={() => void handleComplete()}
+                disabled={job.status !== "In Progress"}
+                className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {job.status === "Completed" ? "Job completed" : "Mark Complete"}
+              </button>
               <Link to="/member/jobs" className="btn-ghost w-full">
                 Back to My Jobs
               </Link>

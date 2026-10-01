@@ -3,8 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Stars, Tag } from "@/components/ui-kit";
-import { reviews } from "@/lib/data";
 import { initials, useProfile, useSignOut, type Profile as ProfileRow } from "@/lib/auth";
+import { useProfileReviews } from "@/lib/reviews";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -27,6 +27,11 @@ function Profile() {
   const signOut = useSignOut();
   const queryClient = useQueryClient();
   const { userId, email, profile, isLoading } = useProfile();
+  const {
+    data: profileReviews = [],
+    isLoading: reviewsLoading,
+    error: reviewsError,
+  } = useProfileReviews(userId);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -46,6 +51,12 @@ function Profile() {
       });
     }
   }, [email, profile]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("reset-password") === "true") {
+      setShowPasswordChange(true);
+    }
+  }, []);
 
   const openEditProfile = () => {
     setProfileSaveMessage(null);
@@ -178,7 +189,8 @@ function Profile() {
                   {isLoading ? "Loading profile…" : fullName}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {profile?.skills?.join(" · ") || "Connectly worker"}
+                  {profile?.skills?.join(" · ") ||
+                    (profile?.role === "member" ? "Community Member" : "Connectly worker")}
                   {profile?.location ? ` · ${profile.location}` : ""}
                 </p>
                 <div className="mt-1 flex items-center gap-3 text-sm">
@@ -211,16 +223,36 @@ function Profile() {
           </div>
 
           <section>
-            <h2 className="mb-3 font-display text-lg font-bold">Reviews ({reviews.length})</h2>
+            <h2 className="mb-3 font-display text-lg font-bold">
+              Reviews ({profileReviews.length})
+            </h2>
+            {reviewsError ? (
+              <p role="alert" className="card-surface p-5 text-sm text-destructive">
+                Reviews could not be loaded. Refresh the page to try again.
+              </p>
+            ) : null}
+            {reviewsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading your reviews…</p>
+            ) : null}
+            {!reviewsLoading && !reviewsError && profileReviews.length === 0 ? (
+              <p className="card-surface p-5 text-sm text-muted-foreground">
+                No reviews yet. Reviews from completed jobs will appear here.
+              </p>
+            ) : null}
             <div className="space-y-3">
-              {reviews.map((review) => (
-                <div key={review.name} className="card-surface p-5">
+              {profileReviews.map((review) => (
+                <div key={review.id} className="card-surface p-5">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-semibold">{review.name}</span>
+                    <div>
+                      <span className="font-semibold">{review.reviewerName}</span>
+                      <p className="text-xs text-muted-foreground">{review.jobTitle}</p>
+                    </div>
                     <span className="text-secondary">{"★".repeat(review.rating)}</span>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">"{review.text}"</p>
-                  <p className="mt-2 text-xs text-muted-foreground">{review.date}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">"{review.comment}"</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {new Date(review.created_at).toLocaleDateString("en-ZA")}
+                  </p>
                 </div>
               ))}
             </div>

@@ -1,12 +1,14 @@
-export type JobStatus = "Open" | "In Progress" | "Completed";
+export type JobStatus = "Open" | "In Progress" | "Completed" | "Cancelled";
 
 export type Job = {
   id: string;
+  ownerId?: string;
   title: string;
   category: string;
   description: string;
   budget: number;
   location: string;
+  photos?: string[];
   postedBy: string;
   clientRating: number;
   distanceKm: number;
@@ -17,6 +19,9 @@ export type Job = {
 };
 
 export type Applicant = {
+  id?: string;
+  workerId?: string;
+  status?: string;
   name: string;
   skill: string;
   rating: number;
@@ -265,10 +270,7 @@ export const conversations = [
   },
 ];
 
-export const chatThread: Record<
-  string,
-  { from: "me" | "them"; text: string; time: string }[]
-> = {
+export const chatThread: Record<string, { from: "me" | "them"; text: string; time: string }[]> = {
   c1: [
     { from: "them", text: "Goeie dag! I saw your garden clean-up job in Ext 15.", time: "12:18" },
     { from: "me", text: "Hi Sipho! Yes it's still open. Can you do this Saturday?", time: "12:22" },
@@ -285,9 +287,7 @@ export const chatThread: Record<
     { from: "me", text: "Hi Lindiwe, thanks. It's a 3-bedroom, empty house.", time: "10:58" },
     { from: "them", text: "Does the price include the windows outside?", time: "11:05" },
   ],
-  c3: [
-    { from: "them", text: "Thursday's session went well, he's improving.", time: "Yesterday" },
-  ],
+  c3: [{ from: "them", text: "Thursday's session went well, he's improving.", time: "Yesterday" }],
   c4: [{ from: "them", text: "I'll bring the washer and the flexi pipe.", time: "Mon" }],
 };
 
@@ -330,7 +330,12 @@ export const notifications = [
 ];
 
 export const transactions = [
-  { job: "Install outside plug points", client: "Pieter van Wyk", amount: 1200, date: "1 Aug 2026" },
+  {
+    job: "Install outside plug points",
+    client: "Pieter van Wyk",
+    amount: 1200,
+    date: "1 Aug 2026",
+  },
   { job: "Hedge trimming & lawn", client: "Fatima Adams", amount: 450, date: "28 Jul 2026" },
   { job: "Deep clean 2-bedroom flat", client: "Riyaad Isaacs", amount: 700, date: "25 Jul 2026" },
   { job: "Paint garage door", client: "Michelle Jantjies", amount: 550, date: "19 Jul 2026" },
@@ -349,17 +354,42 @@ export const weeklyEarnings = [
 
 export const applications = {
   Applied: [
-    { job: "Paint two bedrooms", client: "Michelle Jantjies", budget: 1800, when: "Applied 2 days ago" },
-    { job: "Fix leaking kitchen tap", client: "Gavin Solomons", budget: 600, when: "Applied yesterday" },
+    {
+      job: "Paint two bedrooms",
+      client: "Michelle Jantjies",
+      budget: 1800,
+      when: "Applied 2 days ago",
+    },
+    {
+      job: "Fix leaking kitchen tap",
+      client: "Gavin Solomons",
+      budget: 600,
+      when: "Applied yesterday",
+    },
   ],
   Shortlisted: [
-    { job: "Deep clean 3-bedroom house", client: "Riyaad Isaacs", budget: 700, when: "Shortlisted today" },
+    {
+      job: "Deep clean 3-bedroom house",
+      client: "Riyaad Isaacs",
+      budget: 700,
+      when: "Shortlisted today",
+    },
   ],
   Hired: [
-    { job: "Garden clean-up and hedge trimming", client: "Fatima Adams", budget: 450, when: "Starts Sat 08:00" },
+    {
+      job: "Garden clean-up and hedge trimming",
+      client: "Fatima Adams",
+      budget: 450,
+      when: "Starts Sat 08:00",
+    },
   ],
   Rejected: [
-    { job: "Weekend caretaker for elderly parent", client: "Denise Cloete", budget: 950, when: "Position filled" },
+    {
+      job: "Weekend caretaker for elderly parent",
+      client: "Denise Cloete",
+      budget: 950,
+      when: "Position filled",
+    },
   ],
 };
 

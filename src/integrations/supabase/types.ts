@@ -117,6 +117,7 @@ export type Database = {
           hired_worker_id: string | null
           id: string
           location: string
+          photos: string[]
           poster_id: string
           schedule: string | null
           status: string
@@ -132,6 +133,7 @@ export type Database = {
           hired_worker_id?: string | null
           id?: string
           location?: string
+          photos?: string[]
           poster_id: string
           schedule?: string | null
           status?: string
@@ -147,6 +149,7 @@ export type Database = {
           hired_worker_id?: string | null
           id?: string
           location?: string
+          photos?: string[]
           poster_id?: string
           schedule?: string | null
           status?: string

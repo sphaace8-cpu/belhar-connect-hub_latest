@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { Stars, Tag } from "@/components/ui-kit";
+import { JobPhotos, Stars, Tag } from "@/components/ui-kit";
 import { rand } from "@/lib/data";
-import { useApplications, useJobs } from "@/lib/hooks";
+import { useMarketplaceJobs } from "@/lib/marketplace";
+import { useProfile } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/worker/job/$jobId")({
@@ -23,23 +24,60 @@ export const Route = createFileRoute("/worker/job/$jobId")({
 
 function WorkerJobDetail() {
   const { jobId } = Route.useParams();
-  const { jobs } = useJobs();
-  const { applied, applyToJob } = useApplications();
+  const { jobs, isLoading, error, refresh, applyToJob } = useMarketplaceJobs();
+  const { userId } = useProfile();
   const [applying, setApplying] = useState(false);
-  const job = jobs.find((j) => j.id === jobId) ?? jobs[0]!;
-  const hasApplied = applied.includes(job.id);
+  const job = jobs.find((j) => j.id === jobId);
+  const hasApplied =
+    job?.applicants.some((application) => application.workerId === userId) ?? false;
 
   const handleApply = async () => {
-    if (hasApplied || applying) return;
+    if (!job || !userId || hasApplied || applying) return;
     setApplying(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    applyToJob(job.id);
-    setApplying(false);
-    toast.success("Application sent to the client");
+    try {
+      await applyToJob(job.id, userId);
+      toast.success("Application sent to the client");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send your application.");
+    } finally {
+      setApplying(false);
+    }
   };
 
+  if (isLoading) {
+    return (
+      <AppShell role="worker" title="Loading job…">
+        <p className="text-sm text-muted-foreground">Loading job details…</p>
+      </AppShell>
+    );
+  }
+
+  if (error || !job) {
+    return (
+      <AppShell role="worker" title="Job unavailable">
+        <div className="card-surface p-8 text-center">
+          <p role={error ? "alert" : undefined} className="text-sm text-muted-foreground">
+            {error ? "We couldn't load this job." : "This job no longer exists or isn't available."}
+          </p>
+          {error ? (
+            <button onClick={() => void refresh()} className="btn-primary mt-5">
+              Try again
+            </button>
+          ) : null}
+          <Link to="/worker/find-jobs" className="btn-secondary mt-5">
+            Back to Find Jobs
+          </Link>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
-    <AppShell role="worker" title={job.title} subtitle={`${job.location} · ${job.distanceKm} km away`}>
+    <AppShell
+      role="worker"
+      title={job.title}
+      subtitle={`${job.location} · ${job.distanceKm} km away`}
+    >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="card-surface p-6">
           <div className="flex flex-wrap items-center gap-2">
@@ -49,6 +87,7 @@ function WorkerJobDetail() {
           </div>
           <h2 className="mt-4 font-display text-lg font-bold">What needs doing</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{job.description}</p>
+          <JobPhotos photos={job.photos} />
 
           <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-border pt-5 text-sm sm:grid-cols-3">
             <div>
@@ -92,7 +131,13 @@ function WorkerJobDetail() {
                 onClick={handleApply}
                 disabled={hasApplied || applying || job.status !== "Open"}
               >
-                {hasApplied ? "Application sent" : applying ? "Sending…" : job.status === "Open" ? "Apply Now" : "Job closed"}
+                {hasApplied
+                  ? "Application sent"
+                  : applying
+                    ? "Sending…"
+                    : job.status === "Open"
+                      ? "Apply Now"
+                      : "Job closed"}
               </button>
               <Link to="/messages" className="btn-secondary w-full">
                 Message Client

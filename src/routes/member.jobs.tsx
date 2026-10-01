@@ -3,7 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { Tag, Stars } from "@/components/ui-kit";
 import { rand, type JobStatus } from "@/lib/data";
-import { useJobs, useJobStatus } from "@/lib/hooks";
+import { useMarketplaceJobs } from "@/lib/marketplace";
+import { useProfile } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/member/jobs")({
@@ -25,23 +26,24 @@ const tabs: JobStatus[] = ["Open", "In Progress", "Completed"];
 
 function MyJobs() {
   const [tab, setTab] = useState<JobStatus>("Open");
-  const { jobs, updateJob } = useJobs();
-  const { jobStatuses, updateStatus } = useJobStatus();
+  const { jobs, updateJobStatus, isLoading, error, refresh } = useMarketplaceJobs();
+  const { userId } = useProfile();
   const [showConfirm, setShowConfirm] = useState<string | null>(null);
+  const myJobs = jobs.filter((job) => job.ownerId === userId);
 
-  const getJobStatus = (jobId: string): JobStatus => {
-    const stored = jobStatuses[jobId];
-    if (stored) return stored as JobStatus;
-    return jobs.find((j) => j.id === jobId)?.status || "Open";
-  };
+  const getJobStatus = (jobId: string): JobStatus =>
+    myJobs.find((job) => job.id === jobId)?.status || "Open";
 
-  const list = jobs.filter((j) => getJobStatus(j.id) === tab);
+  const list = myJobs.filter((j) => getJobStatus(j.id) === tab);
 
-  const handleMarkComplete = (jobId: string) => {
-    updateStatus(jobId, "Completed");
-    updateJob(jobId, { status: "Completed" });
-    toast.success("Job marked as complete");
-    setShowConfirm(null);
+  const handleMarkComplete = async (jobId: string) => {
+    try {
+      await updateJobStatus(jobId, "Completed");
+      toast.success("Job marked as complete");
+      setShowConfirm(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update this job.");
+    }
   };
 
   return (
@@ -55,6 +57,15 @@ function MyJobs() {
         </Link>
       }
     >
+      {error ? (
+        <p role="alert" className="card-surface p-5 text-sm text-destructive">
+          We couldn't load your jobs.{" "}
+          <button onClick={() => void refresh()} className="font-semibold underline">
+            Try again
+          </button>
+        </p>
+      ) : null}
+      {isLoading ? <p className="text-sm text-muted-foreground">Loading your jobs…</p> : null}
       <div className="flex gap-2 border-b border-border">
         {tabs.map((t) => (
           <button
@@ -66,7 +77,7 @@ function MyJobs() {
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t} ({jobs.filter((j) => getJobStatus(j.id) === t).length})
+            {t} ({myJobs.filter((j) => getJobStatus(j.id) === t).length})
           </button>
         ))}
       </div>
@@ -129,11 +140,12 @@ function MyJobs() {
                     <div className="card-surface max-w-sm space-y-4 p-6">
                       <h3 className="font-display text-lg font-bold">Mark Job as Complete?</h3>
                       <p className="text-sm text-muted-foreground">
-                        This will close the job and notify all applicants that the position has been filled.
+                        This will close the job and notify all applicants that the position has been
+                        filled.
                       </p>
                       <div className="flex gap-3">
                         <button
-                          onClick={() => handleMarkComplete(j.id)}
+                          onClick={() => void handleMarkComplete(j.id)}
                           className="btn-primary flex-1"
                         >
                           Yes, mark complete
@@ -148,11 +160,7 @@ function MyJobs() {
                     </div>
                   </div>
                 )}
-                <Link
-                  to="/messages"
-                  className="btn-ghost"
-                  title="View messages for this job"
-                >
+                <Link to="/messages" className="btn-ghost" title="View messages for this job">
                   💬 Messages ({j.applicants.length})
                 </Link>
               </div>
