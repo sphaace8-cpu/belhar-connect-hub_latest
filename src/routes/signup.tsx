@@ -42,10 +42,11 @@ function SignUp() {
     event.preventDefault();
     setError(null);
     const formData = new FormData(event.currentTarget);
-    const confirmationUrl = () => https://belhar-connect-hublatestt.vercel.app/login?confirmed=1;
+    const fullName = String(formData.get("fullName") ?? "").trim();
     const email = String(formData.get("email") ?? "")
       .trim()
       .toLowerCase();
+    const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
     const phone = String(formData.get("phone") ?? "").trim();
     const password = String(formData.get("password") ?? "");
     const location = String(formData.get("location") ?? "").trim();
@@ -70,7 +71,7 @@ function SignUp() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo,
           data: {
             full_name: fullName,
             role,
@@ -83,7 +84,7 @@ function SignUp() {
       });
       if (signUpError) throw signUpError;
 
-      if (data.session) {
+      if (data.session && data.user) {
         queryClient.setQueryData(["auth", "user"], {
           id: data.user.id,
           email: data.user.email ?? null,
@@ -113,7 +114,7 @@ function SignUp() {
       const { error: resendError } = await supabase.auth.resend({
         type: "signup",
         email: verificationEmail,
-        options: { emailRedirectTo: `${window.location.origin}/login` },
+        options: { emailRedirectTo: `${window.location.origin}/login?confirmed=1` },
       });
       if (resendError) throw resendError;
       setResendMessage("A new verification email has been sent.");
