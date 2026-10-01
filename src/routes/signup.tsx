@@ -42,7 +42,7 @@ function SignUp() {
     event.preventDefault();
     setError(null);
     const formData = new FormData(event.currentTarget);
-    const fullName = String(formData.get("fullName") ?? "").trim();
+    const confirmationUrl = () => https://belhar-connect-hublatestt.vercel.app/login?confirmed=1;
     const email = String(formData.get("email") ?? "")
       .trim()
       .toLowerCase();
