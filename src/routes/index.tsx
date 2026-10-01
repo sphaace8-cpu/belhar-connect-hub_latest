@@ -81,9 +81,21 @@ function Home() {
         </p>
         <div className="mt-10 grid gap-5 md:grid-cols-3">
           {[
-            ["1", "Post or browse", "Describe the job and your budget in Rand, or scroll jobs near you."],
-            ["2", "Choose your person", "Compare ratings, reviews and distance, then chat before you commit."],
-            ["3", "Get it done & pay", "Mark the job complete, release payment and leave a review."],
+            [
+              "1",
+              "Post or browse",
+              "Describe the job and your budget in Rand, or scroll jobs near you.",
+            ],
+            [
+              "2",
+              "Choose your person",
+              "Compare ratings, reviews and distance, then chat before you commit.",
+            ],
+            [
+              "3",
+              "Get it done & pay",
+              "Mark the job complete, release payment and leave a review.",
+            ],
           ].map(([n, t, b]) => (
             <div key={n} className="card-surface p-6">
               <span className="grid h-11 w-11 place-items-center rounded-full bg-accent font-display text-lg font-bold text-primary">

@@ -167,14 +167,44 @@ export function useApplications() {
   return { applied, applyToJob };
 }
 
+export type JobDraft = {
+  title: string;
+  category: string;
+  description: string;
+  budget: string;
+  datetime: string;
+  location: string;
+  urgent: boolean;
+  savedAt?: string;
+};
+
+function isJobDraft(value: unknown): value is JobDraft {
+  if (typeof value !== "object" || value === null) return false;
+  const draft = value as Record<string, unknown>;
+  return (
+    typeof draft["title"] === "string" &&
+    typeof draft["category"] === "string" &&
+    typeof draft["description"] === "string" &&
+    typeof draft["budget"] === "string" &&
+    typeof draft["datetime"] === "string" &&
+    typeof draft["location"] === "string" &&
+    typeof draft["urgent"] === "boolean"
+  );
+}
+
 export function useJobDrafts() {
-  const [drafts, setDrafts] = useState<Record<string, any>>(() => {
+  const [drafts, setDrafts] = useState<Record<string, JobDraft>>(() => {
     if (typeof window === "undefined") return {};
     const stored = localStorage.getItem("jobDrafts");
-    return stored ? JSON.parse(stored) : {};
+    if (!stored) return {};
+    const parsed: unknown = JSON.parse(stored);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, JobDraft] => isJobDraft(entry[1])),
+    );
   });
 
-  const saveDraft = useCallback((id: string, data: any) => {
+  const saveDraft = useCallback((id: string, data: JobDraft) => {
     setDrafts((prev) => {
       const updated = { ...prev, [id]: { ...data, savedAt: new Date().toISOString() } };
       localStorage.setItem("jobDrafts", JSON.stringify(updated));

@@ -76,10 +76,7 @@ function Chat() {
             </div>
           ))}
         </div>
-        <form
-          className="flex items-center gap-2 border-t border-border p-3"
-          onSubmit={sendMessage}
-        >
+        <form className="flex items-center gap-2 border-t border-border p-3" onSubmit={sendMessage}>
           <input
             className="field"
             placeholder="Write a message…"

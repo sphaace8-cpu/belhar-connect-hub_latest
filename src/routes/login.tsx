@@ -59,7 +59,7 @@ function Login() {
         if (sessionError) throw sessionError;
         const user = data.session?.user;
         if (active && user) {
-          await redirectAuthenticatedUser(user.id, user.email ?? null, user.user_metadata.role);
+          await redirectAuthenticatedUser(user.id, user.email ?? null, user.user_metadata["role"]);
         }
       })
       .catch((sessionError: unknown) => {
@@ -96,7 +96,7 @@ function Login() {
       await redirectAuthenticatedUser(
         data.user.id,
         data.user.email ?? null,
-        data.user.user_metadata.role ?? role,
+        data.user.user_metadata["role"] ?? role,
       );
     } catch (signInError) {
       setError(

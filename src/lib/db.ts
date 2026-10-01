@@ -84,7 +84,9 @@ export const myApplicationsQuery = (userId: string | null) =>
       unwrap(
         await supabase
           .from("applications")
-          .select("*, job:jobs(*, poster:profiles!jobs_poster_id_fkey(id, full_name, rating, location))")
+          .select(
+            "*, job:jobs(*, poster:profiles!jobs_poster_id_fkey(id, full_name, rating, location))",
+          )
           .eq("worker_id", userId!)
           .order("created_at", { ascending: false }),
       ) as MyApplication[],
@@ -186,10 +188,7 @@ export const notificationsQuery = (userId: string | null) =>
     enabled: !!userId,
     queryFn: async () =>
       unwrap(
-        await supabase
-          .from("notifications")
-          .select("*")
-          .order("created_at", { ascending: false }),
+        await supabase.from("notifications").select("*").order("created_at", { ascending: false }),
       ) as Tables<"notifications">[],
   });
 

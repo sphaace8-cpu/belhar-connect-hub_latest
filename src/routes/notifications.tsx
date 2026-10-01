@@ -10,7 +10,8 @@ export const Route = createFileRoute("/notifications")({
       { title: "Notifications — Connectly" },
       {
         name: "description",
-        content: "Applications, messages, reviews and payments — everything happening on your jobs.",
+        content:
+          "Applications, messages, reviews and payments — everything happening on your jobs.",
       },
       { property: "og:title", content: "Notifications — Connectly" },
       { property: "og:description", content: "Stay on top of your Connectly activity." },
@@ -21,16 +22,14 @@ export const Route = createFileRoute("/notifications")({
 
 function Notifications() {
   const [notifications, setNotifications] = useState(
-    initialNotifications.map((n) => ({ ...n, id: n.title }))
+    initialNotifications.map((n) => ({ ...n, id: n.title })),
   );
   const [showConfirm, setShowConfirm] = useState(false);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
-    );
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)));
   };
 
   const markAllAsRead = () => {
@@ -71,10 +70,7 @@ function Notifications() {
               <button onClick={markAllAsRead} className="btn-primary flex-1">
                 Yes, mark all
               </button>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="btn-secondary flex-1"
-              >
+              <button onClick={() => setShowConfirm(false)} className="btn-secondary flex-1">
                 Cancel
               </button>
             </div>

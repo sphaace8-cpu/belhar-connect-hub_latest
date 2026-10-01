@@ -337,7 +337,7 @@ function L({
   children,
 }: {
   label: string;
-  error?: string;
+  error?: string | undefined;
   children: React.ReactNode;
 }) {
   return (

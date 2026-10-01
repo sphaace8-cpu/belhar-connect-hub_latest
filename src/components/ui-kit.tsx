@@ -73,7 +73,7 @@ export function Section({
   );
 }
 
-export function JobPhotos({ photos }: { photos?: string[] }) {
+export function JobPhotos({ photos }: { photos?: string[] | undefined }) {
   if (!photos?.length) return null;
   return (
     <section aria-label="Job photos" className="grid gap-3 sm:grid-cols-2">
